@@ -329,6 +329,7 @@ module.exports = grammar({
       optional(seq('=', field('default_value', $._expression)))
     ),
 
+    // Block
     _block: $ => prec.left(seq(
       sep1($._semicolon, choice(
         $._expression,
@@ -337,6 +338,7 @@ module.exports = grammar({
       optional($._semicolon),
     )),
 
+    // '{' Block '}'
     block: $ => seq(
       '{',
       optional($._block),
