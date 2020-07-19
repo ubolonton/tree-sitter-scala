@@ -23,6 +23,28 @@ class C {
           (call_expression (identifier) (arguments (identifier) (identifier))))))))
 
 ===============================
+Call expressions with block
+===============================
+
+val x = list.filter { x =>
+  x > 5
+}
+
+---
+
+(compilation_unit
+  (val_definition (identifier)
+    (call_expression (field_expression (identifier) (identifier))
+      (block
+        (anonymous_function
+          (identifier)
+          (infix_expression
+            (identifier)
+            (operator_identifier)
+            (number)))))))
+
+
+===============================
 Generic functions
 ===============================
 

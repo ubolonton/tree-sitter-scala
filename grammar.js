@@ -40,6 +40,7 @@ module.exports = grammar({
     $._definition,
     $._type_identifier,
     $._param_type,
+    $._block_expression,
   ],
 
   conflicts: $ => [
@@ -331,14 +332,19 @@ module.exports = grammar({
       optional(seq('=', field('default_value', $._expression)))
     ),
 
+    // Block
     _block: $ => prec.left(seq(
       sep1($._semicolon, choice(
         $._expression,
-        $._definition
+        $.anonymous_function,
+        $._definition,
       )),
-      optional($._semicolon),
+      optional(choice($._semicolon, $.anonymous_function)),
+      // optional(choice($._semicolon, $._expression)),
+      // optional($._semicolon),
     )),
 
+    // '{' Block '}'
     block: $ => seq(
       '{',
       optional($._block),
@@ -523,6 +529,9 @@ module.exports = grammar({
       $.string
     ),
 
+    // BlockExpr
+    _block_expression: $ => choice($.block, $.case_block),
+
     if_expression: $ => prec.right(seq(
       'if',
       field('condition', $.parenthesized_expression),
@@ -581,9 +590,13 @@ module.exports = grammar({
 
     call_expression: $ => prec(PREC.call, seq(
       field('function', $._expression),
-      field('arguments', $.arguments),
-      field('body', optional(choice($.block, $.case_block)))
-    )),
+      repeat1(choice(
+        field('arguments', $.arguments),
+        field('body', $._block_expression),
+      )),
+      // field('arguments', repeat($.arguments)),
+      // field('body', optional($._block_expression)),
+     )),
 
     field_expression: $ => prec(PREC.field, seq(
       field('value', $._expression),
@@ -626,10 +639,32 @@ module.exports = grammar({
       ']'
     ),
 
+    // TODO: Include $._block_expression?
     arguments: $ => seq(
       '(',
       commaSep($._expression),
       ')'
+    ),
+
+    // The EBNF seems to have a bug here. It wouldn't allow id => Block in a Block. This is actually
+    // the combination of parts of Expr and ResultExpr that include Bindings. TODO: Call this
+    // function_expression?
+    anonymous_function: $ => seq(
+      choice(
+        // prec.dynamic(1, $._bindings),
+        // $._bindings,
+        seq(
+          choice(
+            seq(optional('implicit'), $.identifier),
+            $.wildcard,
+          ),
+          optional(seq(':', choice($.compound_type, $._annotated_type))),
+          // ':',
+          // choice($.compound_type, $._annotated_type),
+        ),
+      ),
+      '=>',
+      field('body', $._block),
     ),
 
     // TODO: Include operators.
