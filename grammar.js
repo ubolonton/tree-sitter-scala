@@ -314,11 +314,13 @@ module.exports = grammar({
       ')'
     ),
 
+    // TODO: Support modifiers (conflict with implicit param list).
     class_parameter: $ => seq(
       repeat($.annotation),
       optional(choice('val', 'var')),
       field('name', $.identifier),
-      optional(seq(':', field('type', $._type))),
+      ':',
+      field('type', $._type),
       optional(seq('=', field('default_value', $._expression)))
     ),
 
