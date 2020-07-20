@@ -6,6 +6,7 @@ class C {
   def main() {
     a()
     a(b, c)
+    a(b)(c)
   }
 }
 
@@ -19,14 +20,21 @@ class C {
         (identifier)
         (parameters)
         (block
-          (call_expression (identifier) (arguments))
-          (call_expression (identifier) (arguments (identifier) (identifier))))))))
+          (call_expression (identifier)
+            (arguments))
+          (call_expression (identifier)
+            (arguments (identifier) (identifier)))
+          (call_expression
+            (call_expression
+              (identifier)
+              (arguments (identifier)))
+            (arguments (identifier))))))))
 
 ===============================
 Call expressions with block
 ===============================
 
-val x = list.filter { x =>
+val y = list.filter { x =>
   x > 5
 }
 
@@ -36,13 +44,45 @@ val x = list.filter { x =>
   (val_definition (identifier)
     (call_expression (field_expression (identifier) (identifier))
       (block
-        (anonymous_function
-          (identifier)
+        (function_expression
+          (function_parameters
+            (identifier))
           (infix_expression
             (identifier)
             (operator_identifier)
             (number)))))))
 
+===============================
+Call expressions with params and block
+===============================
+
+val x = with(1) { y =>
+  y(z, { u =>
+    u
+  })
+}
+
+---
+
+(compilation_unit
+  (val_definition (identifier)
+    (call_expression
+      (call_expression
+        (identifier)
+        (arguments (number)))
+      (block
+        (function_expression
+          (function_parameters
+            (identifier))
+          (call_expression
+            (identifier)
+            (arguments
+              (identifier)
+              (block
+                (function_expression
+                  (function_parameters
+                    (identifier))
+                  (identifier))))))))))
 
 ===============================
 Generic functions

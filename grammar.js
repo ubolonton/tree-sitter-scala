@@ -1,9 +1,11 @@
 const PREC = {
+  postfix: 1,
   assign: 1,
   infix: 2,
   new: 3,
   prefix: 3,
   compound: 3,
+  // func: 3,
   call: 4,
   field: 4,
 }
@@ -38,13 +40,22 @@ module.exports = grammar({
     $._pattern,
     $._semicolon,
     $._definition,
+    $._definition_in_block,
     $._type_identifier,
     $._param_type,
     $._block_expression,
+    $._arguments,
+    // $._expression,
+    // $._bindings,
   ],
 
   conflicts: $ => [
     [$.tuple_type, $.parameter_types],
+    [$._expression, $._binding],
+    // [$.call_expression, $.call_expression],
+    // [$.parenthesized_expression, $.function_parameters],
+    // [$.class_definition, $.class_definition],
+    // [$._expression, $.function_expression],
   ],
 
   word: $ => $.identifier,
@@ -52,9 +63,26 @@ module.exports = grammar({
   rules: {
     compilation_unit: $ => repeat($._definition),
 
+    // compilation_unit: $ => sep($._semicolon, $._definition),
+
     _definition: $ => choice(
       $.package_clause,
       $.package_object,
+      $._definition_in_block,
+      // $.class_definition,
+      // $.import_declaration,
+      // $.object_definition,
+      // $.trait_definition,
+      // $.val_definition,
+      // $.val_declaration,
+      // $.var_definition,
+      // $.var_declaration,
+      // $.type_definition,
+      // $.function_definition,
+      // $.function_declaration
+    ),
+
+    _definition_in_block: $ => choice(
       $.class_definition,
       $.import_declaration,
       $.object_definition,
@@ -65,9 +93,10 @@ module.exports = grammar({
       $.var_declaration,
       $.type_definition,
       $.function_definition,
-      $.function_declaration
+      $.function_declaration,
     ),
 
+    // 'package'  package_identifier  •  '{'
     package_clause: $ => seq(
       'package',
       field('name', $.package_identifier),
@@ -93,7 +122,7 @@ module.exports = grammar({
       sep1(',', $._import_expression)
     ),
 
-    _import_expression: $ => seq(
+    _import_expression: $ => prec.right(seq(
       field('path', choice($.stable_identifier, $.identifier)),
       optional(seq(
         '.',
@@ -102,7 +131,7 @@ module.exports = grammar({
           $.import_selectors
         )
       ))
-    ),
+    )),
 
     import_selectors: $ => seq(
       '{',
@@ -131,7 +160,7 @@ module.exports = grammar({
       field('body', optional($.template_body)),
     ),
 
-    class_definition: $ => seq(
+    class_definition: $ => prec.right(seq(
       repeat($.annotation),
       optional($.modifiers),
       optional('case'),
@@ -141,7 +170,7 @@ module.exports = grammar({
       field('class_parameters', repeat($.class_parameters)),
       field('extend', optional($.extends_clause)),
       field('body', optional($.template_body))
-    ),
+    )),
 
     trait_definition: $ => seq(
       'trait',
@@ -272,7 +301,7 @@ module.exports = grammar({
       )
     ),
 
-    function_declaration: $ => seq(
+    function_declaration: $ => prec.right(seq(
       repeat($.annotation),
       optional($.modifiers),
       'def',
@@ -280,7 +309,7 @@ module.exports = grammar({
       field('type_parameters', optional($.type_parameters)),
       field('parameters', repeat($.parameters)),
       optional(seq(':', field('return_type', $._type)))
-    ),
+    )),
 
     modifiers: $ => repeat1(choice(
       'abstract',
@@ -293,11 +322,11 @@ module.exports = grammar({
       'protected'
     )),
 
-    extends_clause: $ => seq(
+    extends_clause: $ => prec.right(seq(
       'extends',
       field('type', $._type),
       optional($.arguments)
-    ),
+    )),
 
     // TODO: Allow only the last parameter list to be implicit.
     class_parameters: $ => seq(
@@ -336,10 +365,10 @@ module.exports = grammar({
     _block: $ => prec.left(seq(
       sep1($._semicolon, choice(
         $._expression,
-        $.anonymous_function,
+        $.function_expression,
         $._definition,
       )),
-      optional(choice($._semicolon, $.anonymous_function)),
+      optional(choice($._semicolon, $.function_expression)),
       // optional(choice($._semicolon, $._expression)),
       // optional($._semicolon),
     )),
@@ -524,10 +553,23 @@ module.exports = grammar({
       $.tuple_expression,
       $.case_block,
       $.block,
+      // $.function_expression,
       $.identifier,
       $.number,
       $.string
     ),
+
+    _simple_expression: $ => choice(
+      $.instance_expression,
+      $._block_expression,
+    ),
+
+    postfix_expression: $ => prec(PREC.postfix, seq(
+      field('operand', $._expression),
+      field('operator', $.identifier),
+    )),
+
+    _argument_expression: $ => seq(),
 
     // BlockExpr
     _block_expression: $ => choice($.block, $.case_block),
@@ -583,20 +625,23 @@ module.exports = grammar({
       field('right', $._expression)
     )),
 
+    // SimpleExpr TypeArgs
     generic_function: $ => prec(PREC.call, seq(
       field('function', $._expression),
       field('type_arguments', $.type_arguments)
     )),
 
+    // SimpleExpr1 ArgumentExprs
     call_expression: $ => prec(PREC.call, seq(
       field('function', $._expression),
-      repeat1(choice(
-        field('arguments', $.arguments),
-        field('body', $._block_expression),
-      )),
-      // field('arguments', repeat($.arguments)),
-      // field('body', optional($._block_expression)),
-     )),
+      $._arguments,
+    )),
+
+    // ArgumentExprs.
+    _arguments: $ => choice(
+      field('arguments', $.arguments),
+      field('body', $._block_expression),
+    ),
 
     field_expression: $ => prec(PREC.field, seq(
       field('value', $._expression),
@@ -639,33 +684,58 @@ module.exports = grammar({
       ']'
     ),
 
-    // TODO: Include $._block_expression?
+    //  '(' [Exprs] ')'  TODO: ':_*'
     arguments: $ => seq(
       '(',
       commaSep($._expression),
       ')'
     ),
 
+    // function_expression: $ => seq(
+    //   choice(
+    //     // prec.dynamic(1, $._bindings),
+    //     $._bindings,
+    //     seq(
+    //       choice(
+    //         seq(optional('implicit'), $.identifier),
+    //         $.wildcard,
+    //       ),
+    //       optional(seq(':', choice($.compound_type, $._annotated_type))),
+    //       // ':',
+    //       // choice($.compound_type, $._annotated_type),
+    //     ),
+    //   ),
+    //   '=>',
+    //   field('body', $._block),
+    // ),
+
     // The EBNF seems to have a bug here. It wouldn't allow id => Block in a Block. This is actually
-    // the combination of parts of Expr and ResultExpr that include Bindings. TODO: Call this
-    // function_expression?
-    anonymous_function: $ => seq(
-      choice(
-        // prec.dynamic(1, $._bindings),
-        // $._bindings,
-        seq(
-          choice(
-            seq(optional('implicit'), $.identifier),
-            $.wildcard,
-          ),
-          optional(seq(':', choice($.compound_type, $._annotated_type))),
-          // ':',
-          // choice($.compound_type, $._annotated_type),
-        ),
-      ),
+    // the combination of parts of Expr and ResultExpr that include Bindings.
+    function_expression: $ => seq(
+      $.function_parameters,
       '=>',
       field('body', $._block),
     ),
+
+    function_parameters: $ => choice(
+      seq('(', commaSep($._binding), ')'),
+      $._binding,
+    ),
+
+    _binding: $ => seq(
+      choice($.identifier, $.wildcard),
+      optional(seq(':', $._type)),
+    ),
+
+    // // TODO: Make this visible?
+    // _bindings: $ => seq(
+    //   '(',
+    //   commaSep1(seq(
+    //     choice($.identifier, $.wildcard),
+    //     optional(seq(':', $._type)),
+    //   )),
+    //   ')'
+    // ),
 
     // TODO: Include operators.
     identifier: $ => /[a-zA-Z_]\w*/,
