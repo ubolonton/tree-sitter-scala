@@ -45,13 +45,15 @@ module.exports = grammar({
     $._param_type,
     $._block_expression,
     $._arguments,
-    // $._expression,
-    // $._bindings,
+    $._expression,
+    $._binding,
   ],
 
   conflicts: $ => [
     [$.tuple_type, $.parameter_types],
-    [$._expression, $._binding],
+    [$.tuple_expression, $.function_parameters],
+    [$.parenthesized_expression, $.function_parameters],
+    // [$._expression, $._binding],
     // [$.call_expression, $.call_expression],
     // [$.parenthesized_expression, $.function_parameters],
     // [$.class_definition, $.class_definition],
