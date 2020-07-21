@@ -357,3 +357,31 @@ class C {
             (prefix_expression (identifier))
             (operator_identifier)
             (identifier)))))))
+
+===============================
+Function expressions
+===============================
+
+object X {
+  val identity = z => z
+
+  b: Int => (c, d) => 5
+}
+
+---
+
+(compilation_unit
+  (object_definition (identifier)
+    (template_body
+      (val_definition (identifier)
+        (function_expression
+          (function_parameters (identifier))
+          (identifier)))
+      (function_expression
+        (function_parameters
+          (identifier) (type_identifier))
+        (function_expression
+          (function_parameters
+            (identifier)
+            (identifier))
+          (number))))))

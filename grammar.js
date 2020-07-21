@@ -47,12 +47,25 @@ module.exports = grammar({
     $._arguments,
     $._expression,
     $._binding,
+    $._import_expression,
+
+    $._block,
+    $._simple_type,
+    $._pattern2,
+    $._type,
   ],
 
   conflicts: $ => [
     [$.tuple_type, $.parameter_types],
     [$.tuple_expression, $.function_parameters],
     [$.parenthesized_expression, $.function_parameters],
+    [$.parameter_types, $.function_parameters], // identifier  ':'  _annotated_type  •  '=>'
+
+    [$.import_declaration, $.stable_identifier],
+    [$.val_declaration, $.val_definition],
+    [$.var_declaration, $.var_definition],
+    [$.stable_type_identifier, $.stable_identifier], // 'extends'  identifier  '.'  identifier  •  '.'
+
     // [$._expression, $._binding],
     // [$.call_expression, $.call_expression],
     // [$.parenthesized_expression, $.function_parameters],
@@ -65,23 +78,10 @@ module.exports = grammar({
   rules: {
     compilation_unit: $ => repeat($._definition),
 
-    // compilation_unit: $ => sep($._semicolon, $._definition),
-
     _definition: $ => choice(
       $.package_clause,
       $.package_object,
       $._definition_in_block,
-      // $.class_definition,
-      // $.import_declaration,
-      // $.object_definition,
-      // $.trait_definition,
-      // $.val_definition,
-      // $.val_declaration,
-      // $.var_definition,
-      // $.var_declaration,
-      // $.type_definition,
-      // $.function_definition,
-      // $.function_declaration
     ),
 
     _definition_in_block: $ => choice(
@@ -98,7 +98,6 @@ module.exports = grammar({
       $.function_declaration,
     ),
 
-    // 'package'  package_identifier  •  '{'
     package_clause: $ => seq(
       'package',
       field('name', $.package_identifier),
@@ -119,12 +118,12 @@ module.exports = grammar({
       $._object_definition
     ),
 
-    import_declaration: $ => seq(
+    import_declaration: $ => prec.right(seq(
       'import',
       sep1(',', $._import_expression)
-    ),
+    )),
 
-    _import_expression: $ => prec.right(seq(
+    _import_expression: $ => seq(
       field('path', choice($.stable_identifier, $.identifier)),
       optional(seq(
         '.',
@@ -133,7 +132,7 @@ module.exports = grammar({
           $.import_selectors
         )
       ))
-    )),
+    ),
 
     import_selectors: $ => seq(
       '{',
@@ -156,11 +155,11 @@ module.exports = grammar({
       $._object_definition
     ),
 
-    _object_definition: $ => seq(
+    _object_definition: $ => prec.right(seq(
       field('name', $.identifier),
       field('extend', optional($.extends_clause)),
       field('body', optional($.template_body)),
-    ),
+    )),
 
     class_definition: $ => prec.right(seq(
       repeat($.annotation),
@@ -174,13 +173,13 @@ module.exports = grammar({
       field('body', optional($.template_body))
     )),
 
-    trait_definition: $ => seq(
+    trait_definition: $ => prec.right(seq(
       'trait',
       field('name', $.identifier),
       field('type_parameters', optional($.type_parameters)),
       field('extend', optional($.extends_clause)),
       field('body', optional($.template_body))
-    ),
+    )),
 
     // The EBNF makes a distinction between function type parameters and other
     // type parameters as you can't specify variance on function type
@@ -245,7 +244,7 @@ module.exports = grammar({
       repeat($.annotation),
       optional($.modifiers),
       'val',
-      field('pattern', $._pattern),
+      field('pattern', $._pattern2),
       optional(seq(':', field('type', $._type))),
       '=',
       field('value', $._expression)
@@ -269,11 +268,12 @@ module.exports = grammar({
       field('type', $._type)
     ),
 
+    // TODO: ids ':' Type '=' '_'
     var_definition: $ => seq(
       repeat($.annotation),
       optional($.modifiers),
       'var',
-      field('pattern', $._pattern),
+      field('pattern', $._pattern2),
       optional(seq(':', field('type', $._type))),
       '=',
       field('value', $._expression)
@@ -367,12 +367,12 @@ module.exports = grammar({
     _block: $ => prec.left(seq(
       sep1($._semicolon, choice(
         $._expression,
-        $.function_expression,
-        $._definition,
+        // $.function_expression,
+        $._definition_in_block,
       )),
-      optional(choice($._semicolon, $.function_expression)),
+      // optional(choice($._semicolon, $.function_expression)),
       // optional(choice($._semicolon, $._expression)),
-      // optional($._semicolon),
+      optional($._semicolon),
     )),
 
     // '{' Block '}'
@@ -453,8 +453,8 @@ module.exports = grammar({
       field('return_type', $._type)
     )),
 
-    // Deprioritize against typed_pattern._type.
-    parameter_types: $ => prec(-1, choice(
+    // Deprioritize against typed_pattern._type and typed_pattern
+    parameter_types: $ => prec(-2, choice(
       $._annotated_type,
       // Prioritize a parenthesized param list over a single tuple_type.
       prec.dynamic(1, seq('(', commaSep($._param_type), ')' )),
@@ -484,13 +484,17 @@ module.exports = grammar({
     // Patterns
 
     _pattern: $ => choice(
+      $.alternative_pattern,
+      $.typed_pattern,
+      $._pattern2,
+    ),
+
+    _pattern2: $ => choice(
       $.identifier,
       $.capture_pattern,
       $.tuple_pattern,
       $.case_class_pattern,
       $.infix_pattern,
-      $.alternative_pattern,
-      $.typed_pattern,
       $.number,
       $.string,
       $.wildcard
@@ -549,13 +553,14 @@ module.exports = grammar({
       $.string_transform_expression,
       $.field_expression,
       $.instance_expression,
-      // TODO: postfix and ascription
+      // TODO: ascription
+      $.postfix_expression,
       $.infix_expression,
       $.prefix_expression,
       $.tuple_expression,
       $.case_block,
       $.block,
-      // $.function_expression,
+      $.function_expression,
       $.identifier,
       $.number,
       $.string
@@ -571,8 +576,6 @@ module.exports = grammar({
       field('operator', $.identifier),
     )),
 
-    _argument_expression: $ => seq(),
-
     // BlockExpr
     _block_expression: $ => choice($.block, $.case_block),
 
@@ -586,11 +589,12 @@ module.exports = grammar({
       ))
     )),
 
-    match_expression: $ => seq(
+    // TODO: Give this its own precedence?
+    match_expression: $ => prec(PREC.postfix, seq(
       field('value', $._expression),
       'match',
       field('body', $.case_block)
-    ),
+    )),
 
     try_expression: $ => prec.right(seq(
       'try',
@@ -693,24 +697,6 @@ module.exports = grammar({
       ')'
     ),
 
-    // function_expression: $ => seq(
-    //   choice(
-    //     // prec.dynamic(1, $._bindings),
-    //     $._bindings,
-    //     seq(
-    //       choice(
-    //         seq(optional('implicit'), $.identifier),
-    //         $.wildcard,
-    //       ),
-    //       optional(seq(':', choice($.compound_type, $._annotated_type))),
-    //       // ':',
-    //       // choice($.compound_type, $._annotated_type),
-    //     ),
-    //   ),
-    //   '=>',
-    //   field('body', $._block),
-    // ),
-
     // The EBNF seems to have a bug here. It wouldn't allow id => Block in a Block. This is actually
     // the combination of parts of Expr and ResultExpr that include Bindings.
     function_expression: $ => seq(
@@ -719,25 +705,17 @@ module.exports = grammar({
       field('body', $._block),
     ),
 
-    function_parameters: $ => choice(
-      seq('(', commaSep($._binding), ')'),
+    // Deprioritize against guard.
+    function_parameters: $ => prec(-1, choice(
+      // Prioritize a parenthesized param list over a single tuple_expression.
+      prec.dynamic(1, seq('(', commaSep($._binding), ')')),
       $._binding,
-    ),
+    )),
 
     _binding: $ => seq(
       choice($.identifier, $.wildcard),
       optional(seq(':', $._type)),
     ),
-
-    // // TODO: Make this visible?
-    // _bindings: $ => seq(
-    //   '(',
-    //   commaSep1(seq(
-    //     choice($.identifier, $.wildcard),
-    //     optional(seq(':', $._type)),
-    //   )),
-    //   ')'
-    // ),
 
     // TODO: Include operators.
     identifier: $ => /[a-zA-Z_]\w*/,
