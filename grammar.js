@@ -150,6 +150,7 @@ module.exports = grammar({
     ),
 
     object_definition: $ => seq(
+      optional($.modifiers),
       optional('case'),
       'object',
       $._object_definition
@@ -174,6 +175,7 @@ module.exports = grammar({
     )),
 
     trait_definition: $ => prec.right(seq(
+      optional($.modifiers),
       'trait',
       field('name', $.identifier),
       field('type_parameters', optional($.type_parameters)),
