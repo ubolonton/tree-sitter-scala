@@ -196,6 +196,38 @@ def other() {
         (call_expression (identifier) (arguments))))))
 
 ===============================
+While expressions
+===============================
+
+def main() {
+  while (x > 0) {
+    x = x - 1
+  }
+
+  while (check())
+    doSomething()
+}
+
+---
+
+(compilation_unit
+  (function_definition (identifier)
+    (parameters)
+    (block
+      (while_expression
+        (parenthesized_expression
+          (infix_expression (identifier) (operator_identifier) (number)))
+        (block
+          (assignment_expression
+            (identifier)
+            (infix_expression (identifier) (operator_identifier) (number)))))
+      (while_expression
+        (parenthesized_expression
+          (call_expression (identifier) (arguments)))
+        (call_expression (identifier) (arguments))))))
+
+
+===============================
 Try expressions
 ===============================
 

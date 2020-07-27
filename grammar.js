@@ -546,6 +546,7 @@ module.exports = grammar({
 
     _expression: $ => choice(
       $.if_expression,
+      $.while_expression,
       $.match_expression,
       $.try_expression,
       $.call_expression,
@@ -590,6 +591,12 @@ module.exports = grammar({
         field('alternative', $._expression)
       ))
     )),
+
+    while_expression: $ => seq(
+      'while',
+      field('condition', $.parenthesized_expression),
+      field('body', $._expression),
+    ),
 
     // TODO: Give this its own precedence?
     match_expression: $ => prec(PREC.postfix, seq(
