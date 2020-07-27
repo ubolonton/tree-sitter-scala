@@ -365,7 +365,9 @@ Function expressions
 object X {
   val identity = z => z
 
-  b: Int => (c, d) => 5
+  // TODO: Add this when we support type ascription
+  // b: Int => (C, D) => D
+  (b: Int) => (c, d) => 5
 }
 
 ---
@@ -377,6 +379,8 @@ object X {
         (function_expression
           (function_parameters (identifier))
           (identifier)))
+      (comment)
+      (comment)
       (function_expression
         (function_parameters
           (identifier) (type_identifier))
