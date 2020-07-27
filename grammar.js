@@ -232,7 +232,7 @@ module.exports = grammar({
     template_body: $ => seq(
       '{',
       // TODO: self type
-      optional($._block),
+      optional(prec.left($._block)),
       '}'
     ),
 
@@ -366,16 +366,13 @@ module.exports = grammar({
     ),
 
     // Block
-    _block: $ => prec.left(seq(
+    _block: $ => seq(
       sep1($._semicolon, choice(
         $._expression,
-        // $.function_expression,
         $._definition_in_block,
       )),
-      // optional(choice($._semicolon, $.function_expression)),
-      // optional(choice($._semicolon, $._expression)),
       optional($._semicolon),
-    )),
+    ),
 
     // '{' Block '}'
     block: $ => seq(
@@ -634,7 +631,7 @@ module.exports = grammar({
       field('pattern', $._pattern),
       optional($.guard),
       '=>',
-      field('body', optional($._block)),
+      field('body', optional(prec.left($._block))),
     )),
 
     guard: $ => seq(
@@ -717,9 +714,12 @@ module.exports = grammar({
     // The EBNF seems to have a bug here. It wouldn't allow id => Block in a Block. This is actually
     // the combination of parts of Expr and ResultExpr that include Bindings.
     function_expression: $ => seq(
-      $.function_parameters,
+      field('function_parameters', $.function_parameters),
       '=>',
-      field('body', $._block),
+      // Normally $._block should have left associativity, but when the containing $.function_expression is
+      // inside a $.block, we want $._block to be as long as possible. TODO: Figure out how to
+      // determine whether we are in a $.block.
+      field('body', prec.right($._block)),
     ),
 
     // Deprioritize against guard.

@@ -35,6 +35,7 @@ Call expressions with block
 ===============================
 
 val y = list.filter { x =>
+  check(x)
   x > 5
 }
 
@@ -47,6 +48,8 @@ val y = list.filter { x =>
         (function_expression
           (function_parameters
             (identifier))
+          (call_expression (identifier)
+            (arguments (identifier)))
           (infix_expression
             (identifier)
             (operator_identifier)
@@ -421,3 +424,47 @@ object X {
             (identifier)
             (identifier))
           (number))))))
+
+===============================
+Function expressions in block
+===============================
+
+object X {
+  val y = { (b: Int) => b
+    f()
+  }
+}
+
+---
+
+(compilation_unit
+  (object_definition (identifier)
+    (template_body
+      (val_definition (identifier)
+        (block
+          (function_expression
+            (function_parameters
+              (identifier) (type_identifier))
+            (identifier)
+            (call_expression (identifier) (arguments))))))))
+
+===============================
+Function expressions in template
+===============================
+
+object X {
+  val x = (b: Int) => b
+  f()
+}
+
+---
+
+(compilation_unit
+  (object_definition (identifier)
+    (template_body
+      (val_definition (identifier)
+        (function_expression
+          (function_parameters
+            (identifier) (type_identifier))
+          (identifier)))
+      (call_expression (identifier) (arguments)))))
