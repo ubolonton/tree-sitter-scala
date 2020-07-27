@@ -229,6 +229,34 @@ def main() {
           (call_expression (identifier) (arguments)))
         (call_expression (identifier) (arguments))))))
 
+===============================
+Do-while expressions
+===============================
+
+def main() {
+  do x = x - 1
+  while (x > 0)
+
+  do something() while (check())
+}
+
+---
+
+(compilation_unit
+  (function_definition (identifier)
+    (parameters)
+    (block
+      (do_while_expression
+        (assignment_expression
+          (identifier)
+          (infix_expression (identifier) (operator_identifier) (number)))
+        (parenthesized_expression
+          (infix_expression (identifier) (operator_identifier) (number))))
+      (do_while_expression
+        (call_expression (identifier) (arguments))
+        (parenthesized_expression
+          (call_expression (identifier) (arguments)))))))
+
 
 ===============================
 Try expressions

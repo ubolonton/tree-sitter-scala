@@ -557,6 +557,7 @@ module.exports = grammar({
     _non_function_expression: $ => choice(
       $.if_expression,
       $.while_expression,
+      $.do_while_expression,
       $.match_expression,
       $.try_expression,
       $.call_expression,
@@ -599,6 +600,14 @@ module.exports = grammar({
       'while',
       field('condition', $.parenthesized_expression),
       field('body', $._expression),
+    ),
+
+    do_while_expression: $ => seq(
+      'do',
+      field('body', $._expression),
+      optional($._semicolon),
+      'while',
+      field('condition', $.parenthesized_expression),
     ),
 
     // TODO: Give this its own precedence?
