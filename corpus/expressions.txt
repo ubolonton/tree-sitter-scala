@@ -394,7 +394,7 @@ object X {
           (number))))))
 
 ===============================
-Function expressions in block
+Function expressions: In block
 ===============================
 
 object X {
@@ -417,7 +417,35 @@ object X {
             (call_expression (identifier) (arguments))))))))
 
 ===============================
-Function expressions in template
+Function expressions: Nested
+===============================
+
+object X {
+  val y = { (b: Int) => b
+    import a.z
+    _ => z
+  }
+}
+
+---
+
+(compilation_unit
+  (object_definition (identifier)
+    (template_body
+      (val_definition (identifier)
+        (block
+          (function_expression
+            (function_parameters
+              (identifier) (type_identifier))
+            (identifier)
+            (import_declaration (stable_identifier (identifier) (identifier)))
+            (function_expression
+              (function_parameters
+                (wildcard))
+              (identifier))))))))
+
+===============================
+Function expressions: In template
 ===============================
 
 object X {

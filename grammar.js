@@ -46,9 +46,10 @@ module.exports = grammar({
     $._block_expression,
     $._arguments,
     $._expression,
+    $._non_function_expression,
     $._binding,
     $._import_expression,
-
+    $._template_block,
     $._block,
     $._simple_type,
     $._pattern2,
@@ -60,17 +61,10 @@ module.exports = grammar({
     [$.tuple_expression, $.function_parameters],
     [$.parenthesized_expression, $.function_parameters],
     [$.parameter_types, $.function_parameters], // identifier  ':'  _annotated_type  •  '=>'
-
     [$.import_declaration, $.stable_identifier],
     [$.val_declaration, $.val_definition],
     [$.var_declaration, $.var_definition],
     [$.stable_type_identifier, $.stable_identifier], // 'extends'  identifier  '.'  identifier  •  '.'
-
-    // [$._expression, $._binding],
-    // [$.call_expression, $.call_expression],
-    // [$.parenthesized_expression, $.function_parameters],
-    // [$.class_definition, $.class_definition],
-    // [$._expression, $.function_expression],
   ],
 
   word: $ => $.identifier,
@@ -230,7 +224,7 @@ module.exports = grammar({
     template_body: $ => seq(
       '{',
       // TODO: self type
-      optional(prec.left($._block)),
+      optional(prec.left($._template_block)),
       '}'
     ),
 
@@ -363,13 +357,26 @@ module.exports = grammar({
       optional(seq('=', field('default_value', $._expression)))
     ),
 
-    // Block
-    _block: $ => seq(
+    // TemplateStat {semi TemplateStat}
+    _template_block: $ => seq(
       sep1($._semicolon, choice(
         $._expression,
         $._definition_in_block,
       )),
       optional($._semicolon),
+    ),
+
+    // Block
+    _block: $ => choice(
+      seq(
+        sep1($._semicolon, choice(
+          $._non_function_expression,
+          $._definition_in_block,
+        )),
+        optional(seq($._semicolon, alias($.function_expression_in_block, $.function_expression))),
+        optional($._semicolon),
+      ),
+      alias($.function_expression_in_block, $.function_expression),
     ),
 
     // '{' Block '}'
@@ -540,6 +547,12 @@ module.exports = grammar({
     // Expressions
 
     _expression: $ => choice(
+      $._non_function_expression,
+      $.function_expression,
+    ),
+
+    // Expr1
+    _non_function_expression: $ => choice(
       $.if_expression,
       $.match_expression,
       $.try_expression,
@@ -556,15 +569,9 @@ module.exports = grammar({
       $.prefix_expression,
       $.tuple_expression,
       $._block_expression,
-      $.function_expression,
       $.identifier,
       $.number,
       $.string
-    ),
-
-    _simple_expression: $ => choice(
-      $.instance_expression,
-      $._block_expression,
     ),
 
     postfix_expression: $ => prec(PREC.postfix, seq(
@@ -613,7 +620,7 @@ module.exports = grammar({
       field('pattern', $._pattern),
       optional($.guard),
       '=>',
-      field('body', optional(prec.left($._block))),
+      field('body', optional($._block)),
     )),
 
     guard: $ => seq(
@@ -693,14 +700,17 @@ module.exports = grammar({
       ')'
     ),
 
-    // The EBNF seems to have a bug here. It wouldn't allow id => Block in a Block. This is actually
-    // the combination of parts of Expr and ResultExpr that include Bindings.
+    // (Bindings | ['implicit'] id | '_') '=>' Expr
     function_expression: $ => seq(
       field('function_parameters', $.function_parameters),
       '=>',
-      // Normally $._block should have left associativity, but when the containing $.function_expression is
-      // inside a $.block, we want $._block to be as long as possible. TODO: Figure out how to
-      // determine whether we are in a $.block.
+      field('body', $._expression)
+    ),
+
+    // ResultExpr ::= (Bindings | (['implicit'] id | '_') ':' CompoundType) '=>' Block
+    function_expression_in_block: $ => seq(
+      field('function_parameters', $.function_parameters),
+      '=>',
       field('body', prec.right($._block)),
     ),
 
