@@ -47,7 +47,6 @@ module.exports = grammar({
     $._arguments,
     $._expression,
     $._non_function_expression,
-    $._binding,
     $._import_expression,
     $._template_block,
     $._block,
@@ -58,9 +57,9 @@ module.exports = grammar({
 
   conflicts: $ => [
     [$.tuple_type, $.parameter_types],
-    [$.tuple_expression, $.function_parameters],
-    [$.parenthesized_expression, $.function_parameters],
-    [$.parameter_types, $.function_parameters], // identifier  ':'  _annotated_type  •  '=>'
+    [$.tuple_expression, $.function_parameter],
+    [$.parenthesized_expression, $.function_parameter],
+    [$.parameter_types, $.function_parameter], // identifier  ':'  _annotated_type  •  '=>'
     [$.import_declaration, $.stable_identifier],
     [$.val_declaration, $.val_definition],
     [$.var_declaration, $.var_definition],
@@ -732,17 +731,17 @@ module.exports = grammar({
       field('body', prec.right($._block)),
     ),
 
-    // Deprioritize against guard.
-    function_parameters: $ => prec(-1, choice(
+    function_parameters: $ => choice(
       // Prioritize a parenthesized param list over a single tuple_expression.
-      prec.dynamic(1, seq('(', commaSep($._binding), ')')),
-      $._binding,
-    )),
-
-    _binding: $ => seq(
-      choice($.identifier, $.wildcard),
-      optional(seq(':', $._type)),
+      prec.dynamic(1, seq('(', commaSep($.function_parameter), ')')),
+      $.function_parameter,
     ),
+
+    // Deprioritize against guard.
+    function_parameter: $ => prec(-1, seq(
+      field('name', choice($.identifier, $.wildcard)),
+      optional(seq(':', field('type', $._type))),
+    )),
 
     // TODO: Include operators.
     identifier: $ => /[a-zA-Z_]\w*/,
